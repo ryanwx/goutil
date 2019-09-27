@@ -21,14 +21,13 @@ func TestSha256(t *testing.T){
 func TestCBCCrypt(t *testing.T) {
     key := []byte("1234567890asdfgh")
     src := []byte("dgs=292")
-    dst, err := EncryptCBCAES(key, src)
+    dst, err := EncryptCBCAESJoinIv(key, src)
     if nil !=  err {
         panic(err)
     }
     fmt.Println(base64.StdEncoding.EncodeToString(dst))
-    base64.StdEncoding.DecodeString()
 
-    src, err = DecryptCBCAES(key, dst)
+    src, err = DecryptCBCAESJoinIv(key, dst)
     if nil != err {
         panic(err)
     }

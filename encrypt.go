@@ -47,43 +47,33 @@ func Sha256(plain []byte) string {
 
 // AES CBC encrypt
 // It will create a random iv.
-// And iv append to the encrypted cipherText, returning the byte array after their combination
-func EncryptCBCAES(cipherKey []byte, src []byte)([]byte, error){
-    cb, err := newCipherBlock(cipherKey)
-    if err != nil {
-        return nil, err
-    }
-    src = aesPadding(src, cb)
-    iv := make([]byte, cb.size)
-    n, err := rand.Read(iv)
-    if nil != err || n != cb.size {
+// And iv append to the encrypted cipherText, returning the byte array after their combination.
+func EncryptCBCAESJoinIv(cipherKey []byte, src []byte)([]byte, error){
+    iv, err := randIv(len(cipherKey))
+    if nil != err {
         return nil, err
     }
 
-    blockMode := cipher.NewCBCEncrypter(cb.block, iv)
+    dst, err := EncryptCBCAES(cipherKey, src, iv)
+    if nil != err {
+        return nil, err
+    }
 
-    return append(aesCrypt(blockMode, src), iv...), nil
+    return append(dst, iv...), nil
 }
 
-// AES CBC Decrypt
+// AES CBC Decrypt.
 // It can decrypt the cipherText combined with the byte array of iv.
-func DecryptCBCAES(cipherKey []byte, dst []byte)([]byte, error){
-    cb, err := newCipherBlock(cipherKey)
-    if err != nil {
-        return nil, err
-    }
-    length := len(dst)
-    iv := dst[(length - cb.size):]
+func DecryptCBCAESJoinIv(cipherKey []byte, dst []byte)([]byte, error){
+    ivStartInd := len(dst) - len(cipherKey)
 
-    blockMode := cipher.NewCBCDecrypter(cb.block, iv)
-
-    return aesUnPadding(aesCrypt(blockMode, dst[:(length - cb.size)])), nil
+    return DecryptCBCAES(cipherKey, dst[:ivStartInd], dst[ivStartInd:])
 }
 
 // AES CBC Encrypt with IV.
-// You have to provide it with a clear iv
-// It returns the encrypted cipherText and does not mix any other data
-func EncryptCBCAESWithIv(cipherKey []byte, src []byte, iv []byte)([]byte, error){
+// You have to provide it with a clear iv.
+// It returns the encrypted cipherText and does not mix any other data.
+func EncryptCBCAES(cipherKey []byte, src []byte, iv []byte)([]byte, error){
     cb, err := newCipherBlock(cipherKey)
     if err != nil {
         return nil, err
@@ -91,20 +81,20 @@ func EncryptCBCAESWithIv(cipherKey []byte, src []byte, iv []byte)([]byte, error)
     src = aesPadding(src, cb)
     blockMode := cipher.NewCBCEncrypter(cb.block, iv)
 
-    return aesCrypt(blockMode, src), nil
+    return aesBlockCrypt(blockMode, src), nil
 }
 
 // AES CBC Decrypt
-// Must explicitly declare the decrypted iv
+// Must explicitly declare the decrypted iv.
 // The decrypted object should be a pure encrypted cipherText, instead of adding any other data after the cipherText.
-func DecryptCBCAESWithIv(cipherKey []byte, dst []byte, iv []byte)([]byte, error){
+func DecryptCBCAES(cipherKey []byte, dst []byte, iv []byte)([]byte, error){
     cb, err := newCipherBlock(cipherKey)
     if err != nil {
         return nil, err
     }
     blockMode := cipher.NewCBCDecrypter(cb.block, iv)
 
-    return aesUnPadding(aesCrypt(blockMode, dst)), nil
+    return aesUnPadding(aesBlockCrypt(blockMode, dst)), nil
 }
 
 // write []byte to hash object, and checksum it.
@@ -114,7 +104,7 @@ func hexEncrypt(h hash.Hash, plain []byte) string {
     return strings.ToUpper(hex.EncodeToString(h.Sum(nil)))
 }
 
-// new cipher Block
+// new cipher Block.
 func newCipherBlock(cipherKey []byte) (cipherBlock , error) {
     block, err := aes.NewCipher(cipherKey)
     if nil != err{
@@ -126,15 +116,26 @@ func newCipherBlock(cipherKey []byte) (cipherBlock , error) {
     return cipherBlock{block:block, size:blockSize}, nil
 }
 
+// rand a iv.
+func randIv(length int) ([]byte, error) {
+    iv := make([]byte, length)
+    n, err := rand.Read(iv)
+    if nil != err || n != length {
+        return nil, err
+    }
+
+    return iv, nil
+}
+
 // aes crypt block, Encrypt or Decrypt.
-func aesCrypt(blockMode cipher.BlockMode, src []byte) []byte {
+func aesBlockCrypt(blockMode cipher.BlockMode, src []byte) []byte {
     dst := make([]byte, len(src))
     blockMode.CryptBlocks(dst, src)
 
     return dst
 }
 
-// aes cipherText padding func
+// aes cipherText padding func.
 func aesPadding(cipherText []byte, cb cipherBlock) []byte {
     padding := cb.size - len(cipherText) % cb.size
     paddingText := bytes.Repeat([]byte{byte(padding)}, padding)
@@ -142,7 +143,7 @@ func aesPadding(cipherText []byte, cb cipherBlock) []byte {
     return append(cipherText, paddingText...)
 }
 
-// aes cipherText unPadding func
+// aes cipherText unPadding func.
 func aesUnPadding(originText []byte) []byte {
     length := len(originText)
     unPadding := int(originText[length - 1])
