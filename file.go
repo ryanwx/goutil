@@ -1,17 +1,17 @@
 package goutil
 
 import (
-    "os"
+	"os"
 )
 
-func PathExists(path string)(bool, error){
-    _, err := os.Stat(path)
-    if nil == err {
-        return true, nil
-    }
-    if os.IsNotExist(err){
-        return false, nil
-    }
+func PathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if nil == err {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
 
-    return false, err
+	return false, err
 }
