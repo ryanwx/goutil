@@ -2,7 +2,6 @@ package goutil
 
 import (
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"testing"
 )
@@ -84,7 +83,7 @@ func TestDecryptRsaPkcs1(t *testing.T) {
 	}
 
 	if plainText != "testRsaEncryptPkcs1" {
-		panic(errors.New("cipherText is wrong"))
+		t.Error("cipherText is wrong")
 	}
 
 	fmt.Println(plainText)
